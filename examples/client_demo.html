@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STT Barge-in Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        #startStopBtn, #saveRecordingBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #startStopBtn:hover, #saveRecordingBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #startStopBtn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        #saveRecordingBtn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        #saveRecordingBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+            min-height: 20px;
+        }
+
+        .status.listening {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .status.speaking {
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        .display-box {
+            background: #f5f5f5;
+            border-radius: 15px;
+            padding: 30px;
+            min-height: 200px;
+            margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .system-response {
+            font-size: 24px;
+            color: #333;
+            line-height: 1.6;
+            min-height: 50px;
+        }
+
+        .interim-text {
+            color: #999;
+            font-style: italic;
+            margin-top: 15px;
+            font-size: 16px;
+            min-height: 24px;
+        }
+
+        .log-box {
+            background: #1e1e1e;
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .log-entry.info {
+            color: #4CAF50;
+        }
+
+        .log-entry.warning {
+            color: #FF9800;
+        }
+
+        .log-entry.error {
+            color: #F44336;
+        }
+
+        .log-entry.speaking {
+            color: #2196F3;
+        }
+
+        .cursor-blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .settings {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .settings label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .settings input {
+            margin-left: 10px;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 STT Barge-in Test</h1>
+        
+        <div class="settings">
+            <label>
+                STT Host: 
+                <input type="text" id="sttHost" value="localhost" />
+            </label>
+            <label>
+                Char Delay (ms): 
+                <input type="number" id="charDelay" value="30" min="10" max="200" />
+            </label>
+        </div>
+
+        <div class="controls">
+            <button id="startStopBtn">Start Chatting</button>
+            <button id="saveRecordingBtn" disabled>💾 Save Recording</button>
+        </div>
+
+        <div class="status" id="status">Click "Start Chatting" to begin</div>
+
+        <div class="display-box">
+            <div class="system-response" id="systemResponse"></div>
+            <div class="interim-text" id="interimText"></div>
+        </div>
+
+        <div class="log-box" id="logBox"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const BARGEIN_DURATION_MS = 1000; // Trigger bargein after 2000ms of speech
+        const MIN_CONFIDENCE_FOR_BARGEIN = 0.70;
+
+        // Script sentences (loaded from script file)
+        const scriptSentences = [
+            "Hi this is Emily from ABC, how are you doing today?",
+            "First of all, could you confirm your date of birth?",
+            "Sorry I could not catch that. What is your date of birth please?",
+            "Thanks. And do you want to consider our offer?",
+            "Could you confirm that you have a bank account?",
+            "Our assistant will now guide you through the process of setting up your account. Now, please provide your bank account number.",
+        ];
+        let currentSentenceIndex = 0;
+
+        // State
+        let isActive = false;
+        let ws = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let processor = null;
+        let isSpeaking = false;
+        let speakingAborted = false;
+        let transcriptBuffer = [];
+        let bargeIn = false;
+        let agentMessageFinished = true;
+        let lastSpokenUtterance = '';
+        let shouldSendLastUtterance = false;
+
+        // Recording state
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+
+        // DOM Elements
+        const startStopBtn = document.getElementById('startStopBtn');
+        const saveRecordingBtn = document.getElementById('saveRecordingBtn');
+        const statusDiv = document.getElementById('status');
+        const systemResponseDiv = document.getElementById('systemResponse');
+        const interimTextDiv = document.getElementById('interimText');
+        const logBox = document.getElementById('logBox');
+        const sttHostInput = document.getElementById('sttHost');
+        const charDelayInput = document.getElementById('charDelay');
+
+        // Logging
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Barge-in detection based on server-provided audio duration
+        function shouldTriggerSmartBargeIn(transcript, data) {
+            // Server provides audio_duration_ms
+            const speechDurationMs = data.audio_duration_ms || 0;
+            log(`Speech duration (from server): ${speechDurationMs}ms`, 'info');
+            
+            // Check if speech duration meets threshold
+            if (speechDurationMs < BARGEIN_DURATION_MS) {
+                log(`[Interim] Rejecting barge in - duration (${speechDurationMs}ms) < threshold (${BARGEIN_DURATION_MS}ms)`, 'warning');
+                return false;
+            }
+
+            // Check confidence if available
+            if (data.avg_confidence) {
+                if (data.avg_confidence < MIN_CONFIDENCE_FOR_BARGEIN) {
+                    log(`[Interim] Rejecting barge in - confidence ${data.avg_confidence.toFixed(2)} < ${MIN_CONFIDENCE_FOR_BARGEIN}`, 'warning');
+                    return false;
+                }
+            }
+
+            log(`[Interim] Barge-in conditions met: duration=${speechDurationMs}ms, conf=${data.avg_confidence?.toFixed(2) || 'N/A'}`, 'info');
+            return true;
+        }
+
+        // Simulate speaking with character-by-character display
+        async function speakText(text) {
+            isSpeaking = true;
+            speakingAborted = false;
+            agentMessageFinished = false;
+            bargeIn = false;
+            lastSpokenUtterance = text; // Track what we're speaking
+            systemResponseDiv.textContent = '';
+            interimTextDiv.textContent = ''; // Clear interim display
+            statusDiv.textContent = '🔊 System Speaking...';
+            statusDiv.className = 'status speaking';
+            
+            log(`Speaking: "${text}"`, 'speaking');
+
+            const charDelay = parseInt(charDelayInput.value) || 50;
+
+            for (let i = 0; i < text.length; i++) {
+                if (speakingAborted) {
+                    log('Speech interrupted by user!', 'warning');
+                    systemResponseDiv.textContent += ' [INTERRUPTED]';
+                    break;
+                }
+                systemResponseDiv.textContent += text[i];
+                await new Promise(resolve => setTimeout(resolve, charDelay));
+            }
+
+            isSpeaking = false;
+            agentMessageFinished = true;
+            bargeIn = false;
+            shouldSendLastUtterance = true; // Flag to send last_utterance with next audio
+            log(`Will send last_utterance: "${lastSpokenUtterance}"`, 'info');
+            transcriptBuffer = []; // Clear any interim buffer from previous turn
+            
+            if (!speakingAborted) {
+                statusDiv.textContent = '👂 Listening for new user input...';
+                statusDiv.className = 'status listening';
+                log('Finished speaking - Ready for new user turn', 'info');
+            }
+        }
+
+        // Handle barge-in
+        function handleBargeIn() {
+            if (isSpeaking) {
+                log('🛑 BARGE-IN DETECTED! Stopping system speech...', 'error');
+                speakingAborted = true;
+                isSpeaking = false;
+                agentMessageFinished = true;
+                bargeIn = false;
+                shouldSendLastUtterance = true; // Send last_utterance with next audio after interruption
+                log(`Will send last_utterance after barge-in: "${lastSpokenUtterance}"`, 'info');
+            }
+        }
+
+        // Setup WebSocket connection
+        function setupWebSocket() {
+            //const sttHost = "wss://wjtuapu44ekzhq-8089.proxy.runpod.net/" //sttHostInput.value || 'localhost';
+            const sttHost = "ws://localhost:8089"; //websocket host
+            //const sttHost = "wss://w7tljx1w5s034f-8089.proxy.runpod.net";
+            const sessionId = 'test-' + Date.now();
+            
+            const wsUrl = `${sttHost}/ws/stt` +
+                `?session_id=${sessionId}` +
+                `&interim_results=true` +
+                `&encoding=mulaw_8k` +
+                `&X-Min-Endpointing-MS=500` +
+                `&X-Max-Endpointing-MS=2000` +
+                `&X-Max-Speech-Segment-MS=20000` +
+                `&X-Min-Speech-Duration-MS=120` +
+                `&X-Short-Transcript-Max-Len=3` +
+                `&X-Word-Confidence-Threshold=0.85` +
+                `&X-Short-Transcript-Avg-Word-Confidence-Threshold=0.70` +
+                `&X-Single-Word-Confidence-Threshold=0.6`;
+
+            log(`Connecting to: ${wsUrl}`, 'info');
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                log('✅ WebSocket connected', 'info');
+                statusDiv.textContent = '👂 Listening...';
+                statusDiv.className = 'status listening';
+            };
+
+            ws.onerror = (err) => {
+                log(`❌ WebSocket error: ${err.message || 'Connection failed'}`, 'error');
+                statusDiv.textContent = '❌ Connection error';
+                stop();
+            };
+
+            ws.onmessage = async (message) => {
+                const data = JSON.parse(message.data);
+                
+                if (data.command === "please_repeat_message") {
+                    return;
+                }
+
+                let transcript = data.transcript;
+                const isFinal = data.is_final;
+
+                log(`Received: ${isFinal ? '[FINAL]' : '[INTERIM]'} "${transcript}" (duration: ${data.audio_duration_ms}ms, conf: ${data.avg_confidence?.toFixed(2) || 'N/A'})`, isFinal ? 'info' : 'warning');
+
+                if ((transcript !== "" && !isFinal) || (transcript === "" && isFinal) || (transcript !== "" && isFinal)) {
+                    
+                    if (!isFinal) {
+                        // Interim result
+                        transcriptBuffer.push(transcript);
+                        interimTextDiv.textContent = `Interim: "${transcript}"`;
+
+                        // Only process barge-in logic if system is actually speaking
+                        if (isSpeaking) {
+                            if (shouldTriggerSmartBargeIn(transcript, data) && !bargeIn) {
+                                bargeIn = true;
+                                log(`✋ Barge-in triggered! (duration: ${data.audio_duration_ms}ms, conf: ${data.avg_confidence?.toFixed(2)})`, 'error');
+                                handleBargeIn();
+                            } else if (!bargeIn) {
+                                log('[Interim] Agent talking, bargeIn=false, ignoring...', 'warning');
+                                return;
+                            }
+                        } else {
+                            // System finished speaking - just display interim, don't treat as barge-in
+                            log('[Interim] User speaking (system finished)', 'info');
+                        }
+
+                        return; // Don't process interim results further
+                    }
+
+                    // Final result
+                    if (transcript.trim() === '' && transcriptBuffer.length > 0) {
+                        transcript = transcriptBuffer.join(' ');
+                        log('[Final] Using buffered interim transcript', 'info');
+                    }
+
+                    if (transcript.trim() === '') {
+                        log('[Final] Empty transcript, ignoring', 'warning');
+                        transcriptBuffer = [];
+                        interimTextDiv.textContent = '';
+                        return;
+                    }
+
+                    // Only handle barge-in if system is actually speaking
+                    if (isSpeaking) {
+                        // For final results during agent speech, always treat as bargein if we got here
+                        bargeIn = true;
+                        handleBargeIn();
+                    }
+
+                    if (transcriptBuffer.length > 0) {
+                        log(`[Final] Had ${transcriptBuffer.length} interim results`, 'info');
+                        transcriptBuffer = [];
+                    }
+
+                    interimTextDiv.textContent = '';
+
+                    // Process the final transcript
+                    log(`📝 Final transcript: "${transcript}"`, 'info');
+                    
+                    // Get next sentence from script (cycle back to start if at end)
+                    const response = scriptSentences[currentSentenceIndex];
+                    currentSentenceIndex = (currentSentenceIndex + 1) % scriptSentences.length;
+                    await speakText(response);
+                }
+            };
+
+            ws.onclose = () => {
+                log('🔌 WebSocket closed', 'warning');
+                if (transcriptBuffer.length > 0) {
+                    log(`Lost ${transcriptBuffer.length} buffered transcripts`, 'warning');
+                    transcriptBuffer = [];
+                }
+            };
+        }
+
+        // Convert Float32Array to mulaw
+        function linearToMulaw(sample) {
+            const MAX = 0x1FFF;
+            const BIAS = 0x84;
+            
+            let sign = (sample < 0) ? 0x80 : 0;
+            if (sign) sample = -sample;
+            
+            sample = sample * MAX;
+            if (sample > MAX) sample = MAX;
+            
+            sample = sample + BIAS;
+            
+            let exponent = 7;
+            for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+            
+            let mantissa = (sample >> (exponent + 3)) & 0x0F;
+            let mulawByte = ~(sign | (exponent << 4) | mantissa);
+            
+            return mulawByte & 0xFF;
+        }
+
+        // Resample audio data to 8kHz
+        function resampleTo8kHz(inputData, inputSampleRate) {
+            const targetSampleRate = 8000;
+            
+            if (inputSampleRate === targetSampleRate) {
+                return inputData;
+            }
+            
+            const sampleRateRatio = inputSampleRate / targetSampleRate;
+            const outputLength = Math.round(inputData.length / sampleRateRatio);
+            const output = new Float32Array(outputLength);
+            
+            for (let i = 0; i < outputLength; i++) {
+                const srcIndex = i * sampleRateRatio;
+                const index = Math.floor(srcIndex);
+                const fraction = srcIndex - index;
+                
+                // Linear interpolation
+                if (index + 1 < inputData.length) {
+                    output[i] = inputData[index] * (1 - fraction) + inputData[index + 1] * fraction;
+                } else {
+                    output[i] = inputData[index];
+                }
+            }
+            
+            return output;
+        }
+
+        // Setup audio capture
+        async function setupAudio() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                // Setup MediaRecorder for saving audio
+                setupMediaRecorder();
+                
+                // Create audio context with browser's native sample rate
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                
+                const actualSampleRate = audioContext.sampleRate;
+                log(`🎤 Microphone sample rate: ${actualSampleRate} Hz`, 'info');
+                log(`🔄 Will resample to: 8000 Hz`, 'info');
+                
+                // Create script processor for audio processing
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                processor.onaudioprocess = (e) => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        
+                        // Resample to 8kHz
+                        const resampledData = resampleTo8kHz(inputData, actualSampleRate);
+                        
+                        // Convert to mulaw
+                        const mulawData = new Uint8Array(resampledData.length);
+                        for (let i = 0; i < resampledData.length; i++) {
+                            mulawData[i] = linearToMulaw(resampledData[i]);
+                        }
+                        
+                        // Build JSON message with audio and optional last_utterance
+                        const audioBase64 = btoa(String.fromCharCode.apply(null, mulawData));
+                        const message = {
+                            audio: audioBase64,
+                            last_utterance: shouldSendLastUtterance ? lastSpokenUtterance : ''
+                        };
+                        
+                        if (shouldSendLastUtterance) {
+                            log(`Sending last_utterance: "${lastSpokenUtterance}"`, 'info');
+                            shouldSendLastUtterance = false; // Only send once
+                        }
+                        
+                        ws.send(JSON.stringify(message));
+                    }
+                };
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                log('✅ Audio pipeline ready: Capture → Resample to 8kHz → μ-law encode → Send', 'info');
+            } catch (err) {
+                log(`❌ Microphone error: ${err.message}`, 'error');
+                alert('Could not access microphone: ' + err.message);
+                throw err;
+            }
+        }
+
+        // Setup MediaRecorder for saving audio
+        function setupMediaRecorder() {
+            try {
+                // Use audio/webm as it's widely supported
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+                mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+                
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    log('📼 Recording stopped, audio chunks collected', 'info');
+                };
+                
+                // Start recording
+                mediaRecorder.start();
+                isRecording = true;
+                saveRecordingBtn.disabled = false;
+                log(`🔴 Recording started (format: ${mimeType})`, 'info');
+            } catch (err) {
+                log(`❌ MediaRecorder error: ${err.message}`, 'error');
+            }
+        }
+
+        // Save recording to file
+        function saveRecording() {
+            if (audioChunks.length === 0) {
+                alert('No audio recorded yet!');
+                return;
+            }
+
+            const mimeType = mediaRecorder ? mediaRecorder.mimeType : 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            // Create download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = audioUrl;
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const extension = mimeType.includes('webm') ? 'webm' : 'ogg';
+            downloadLink.download = `recording_${timestamp}.${extension}`;
+            
+            // Trigger download
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            // Clean up URL
+            URL.revokeObjectURL(audioUrl);
+            
+            log(`💾 Recording saved as ${downloadLink.download}`, 'info');
+            log(`📊 File size: ${(audioBlob.size / 1024 / 1024).toFixed(2)} MB`, 'info');
+        }
+
+        // Start the system
+        async function start() {
+            try {
+                setupWebSocket();
+                await setupAudio();
+                isActive = true;
+                startStopBtn.textContent = 'Stop Chatting';
+                startStopBtn.classList.add('active');
+                log('🚀 System started', 'info');
+                
+                // Agent speaks first sentence to initiate conversation
+                const firstSentence = scriptSentences[currentSentenceIndex];
+                currentSentenceIndex = (currentSentenceIndex + 1) % scriptSentences.length;
+                log('🎬 Initiating conversation with first sentence', 'info');
+                await speakText(firstSentence);
+            } catch (err) {
+                log(`Failed to start: ${err.message}`, 'error');
+                stop();
+            }
+        }
+
+        // Stop the system
+        function stop() {
+            isActive = false;
+            speakingAborted = true;
+            
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            if (processor) {
+                processor.disconnect();
+                processor = null;
+            }
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            // Stop MediaRecorder if recording
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                log('📼 Recording stopped', 'info');
+            }
+            
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            
+            startStopBtn.textContent = 'Start Chatting';
+            startStopBtn.classList.remove('active');
+            statusDiv.textContent = 'Stopped';
+            statusDiv.className = 'status';
+            interimTextDiv.textContent = '';
+            
+            log('🛑 System stopped', 'warning');
+        }
+
+        // Button click handler
+        startStopBtn.addEventListener('click', () => {
+            if (isActive) {
+                stop();
+            } else {
+                start();
+            }
+        });
+
+        // Save recording button handler
+        saveRecordingBtn.addEventListener('click', () => {
+            saveRecording();
+        });
+
+        log('App initialized. Click "Start Chatting" to begin.', 'info');
+    </script>
+</body>
+</html>
+

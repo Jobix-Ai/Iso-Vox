@@ -1,0 +1,20 @@
+fastapi
+uvicorn
+python-dotenv
+numpy
+scipy
+httpx
+torch
+torchaudio
+silero-vad
+nemo_toolkit[asr]==2.3.1
+soundfile
+librosa
+loguru
+websockets
+google-genai
+MPSENet
+
+#sudo apt-get install git-lfs
+#git lfs install
+#git lfs pull

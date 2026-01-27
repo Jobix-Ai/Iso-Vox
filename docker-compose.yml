@@ -1,0 +1,90 @@
+services:
+  stt-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobix-pipeline-stt
+    image: jobix-pipeline-stt:latest
+    restart: unless-stopped
+    
+    # GPU support (requires nvidia-docker runtime)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    ports:
+      # Gateway
+      - "${GATEWAY_PORT:-8089}:8089"
+      # ASR Batching Worker
+      - "8090:8090"
+      # Smart Turn Worker
+      - "8091:8091"
+      # Speaker Verification
+      - "8092:8092"
+      # Parakeet ASR Worker
+      - "8093:8093"
+      # Moonshine ASR Worker
+      - "8094:8094"
+    
+    volumes:
+      - ./logs:/app/logs
+      - ./debug_audio:/app/debug_audio
+      - ./models:/app/models  # Optional: for caching models
+    
+    environment:
+      - DEBUG_SAVE_AUDIO=${DEBUG_SAVE_AUDIO:-false}
+      - DEBUG_AUDIO_DIR=${DEBUG_AUDIO_DIR:-debug_audio}
+
+      # Gateway settings
+      - GATEWAY_PORT=${GATEWAY_PORT:-8089}
+      - MIN_SPEECH_DURATION_MS=${MIN_SPEECH_DURATION_MS:-120}
+      - MAX_SPEECH_SEGMENT_MS=${MAX_SPEECH_SEGMENT_MS:-20000}
+      - VAD_SPEECH_THRESHOLD=${VAD_SPEECH_THRESHOLD:-0.45}
+      - MIN_ENDPOINTING_MS=${MIN_ENDPOINTING_MS:-450}
+      - MAX_ENDPOINTING_MS=${MAX_ENDPOINTING_MS:-2000}
+      - SPEAKER_ADAPTATION_ENABLED=${SPEAKER_ADAPTATION_ENABLED:-true}
+      
+      # End-of-Speech Detection Method
+      - EOS_METHOD=${EOS_METHOD:-smart_turn}
+
+      # Batching Worker settings
+      - ASR_BATCHING_WORKER_URL=${ASR_BATCHING_WORKER_URL:-http://localhost:8090}
+      - ASR_MAX_BATCH_SIZE=${ASR_MAX_BATCH_SIZE:-64}
+      - ASR_BATCH_TIMEOUT_S=${ASR_BATCH_TIMEOUT_S:-0.01}
+      - ASR_MODEL_PATH=${ASR_MODEL_PATH:-nvidia/parakeet-tdt-0.6b-v2}
+      
+      # ASR Worker URLs
+      - ASR_PARAKEET_WORKER_URL=${ASR_PARAKEET_WORKER_URL:-http://127.0.0.1:8093}
+      - ASR_MOONSHINE_WORKER_URL=${ASR_MOONSHINE_WORKER_URL:-http://127.0.0.1:8094}
+      - ASR_SHORT_DURATION_MS=${ASR_SHORT_DURATION_MS:-500}
+
+      # Smart Turn Worker settings
+      - SMART_TURN_MODEL_PATH=${SMART_TURN_MODEL_PATH:-smart-turn-v3.1-gpu.onnx}
+      - SMART_TURN_WORKER_URL=${SMART_TURN_WORKER_URL:-http://localhost:8091}
+      - SMART_TURN_THRESHOLD=${SMART_TURN_THRESHOLD:-0.5}
+      - SMART_TURN_MAX_BATCH_SIZE=${SMART_TURN_MAX_BATCH_SIZE:-64}
+      - SMART_TURN_BATCH_TIMEOUT_S=${SMART_TURN_BATCH_TIMEOUT_S:-0.01}
+
+      # Speaker Verification settings
+      - SPEAKER_VERIFICATION_WORKER_URL=${SPEAKER_VERIFICATION_WORKER_URL:-http://localhost:8092}
+      - SPEAKER_VERIFICATION_ENROLLMENT_SPEECHES=${SPEAKER_VERIFICATION_ENROLLMENT_SPEECHES:-2}
+      - SPEAKER_VERIFICATION_THRESHOLD1=${SPEAKER_VERIFICATION_THRESHOLD1:-0.25}
+      - SPEAKER_VERIFICATION_THRESHOLD2=${SPEAKER_VERIFICATION_THRESHOLD2:-0.4}
+      - SPEAKER_VERIFICATION_UPDATE_WEIGHT=${SPEAKER_VERIFICATION_UPDATE_WEIGHT:-0.3}
+      - SPEAKER_VERIFICATION_MIN_AUDIO_MS=${SPEAKER_VERIFICATION_MIN_AUDIO_MS:-300}
+    
+    healthcheck:
+      test: ["CMD", "/health-check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Use host network mode for better performance (optional)
+    # network_mode: host  # Uncomment if you want to use host networking
+    
+    command: ["all"]  # Start all services

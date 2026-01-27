@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/*.log
+logs/*.pid
+*.log
+
+# Debug audio
+debug_audio/*.raw
+debug_audio/*.wav
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Environment files
+.env
+.env.*
+
+# Models (might be too large - download at runtime or mount as volume)
+models/
+*.pt
+*.pth
+# Don't ignore required ONNX models
+# *.onnx
+
+# Test files
+test_*.py
+test_*.html
+client*.js
+*.example
+
+# Temporary files
+*.tmp
+*.bak
+*.zip
+

@@ -128,6 +128,25 @@ docker run -d \
 docker logs -f jobix-pipeline-stt
 ```
 
+## Limitations
+
+While Iso-Vox provides real-time ASR with speaker verification for isolating a target speaker, the system has known limitations that affect accuracy in certain scenarios. We document these transparently to help users understand when the system may underperform. Contributions and ideas for improvement are welcome!
+
+| Limitation | Description |
+|------------|-------------|
+| **Overlapping Speech** | When the main speaker starts in the middle of background speech (TV, other person), the speaker embedding gets contaminated, leading to verification failures |
+| **Enrollment Quality** | Our verification logic heavily depends on quality of enrolled speeches. If the enrolled speeches have low quality or locked to wrong speaker, the STT system will fail. |
+| **Single Speaker Assumption** | System assumes single primary speaker; no multi-speaker diarization |
+| **Enhancement Artifacts** | Speech enhancement may introduce artifacts that affect downstream ASR accuracy |
+| **Stateless** | Current logic uses the same thresholds for all users, and ASR models also work independently without having access to conversation context |
+
+
+### Roadmap
+
+- [ ] **Dynamic Threshold Calibration**: Adapt per-speaker thresholds based on intra-exemplar similarity, speaking style, acoustic characteristics.
+- [ ] **Real-Time Source Separation**: Integrate a lightweight source separation e.g. [TIGER](https://github.com/JusperLee/TIGER/tree/main) or [MossFormer2](https://github.com/alibabasglab/MossFormer2).
+- [ ] **Context aware**: Make the speaker verifier or ASR aware of conversation context
+
 ## Acknowledgements
 
 This STT system uses the following projects:

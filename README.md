@@ -142,10 +142,10 @@ While Iso-Vox provides real-time ASR with speaker verification for isolating a t
 
 
 ### Roadmap
-
+- [X] **Target Speaker Tracking**: The STT be able to transcribe speech of user speaker, ignore other voices.
 - [ ] **Dynamic Threshold Calibration**: Adapt per-speaker thresholds based on intra-exemplar similarity, speaking style, acoustic characteristics.
 - [ ] **Real-Time Source Separation**: Integrate a lightweight source separation e.g. [TIGER](https://github.com/JusperLee/TIGER/tree/main) or [MossFormer2](https://github.com/alibabasglab/MossFormer2).
-- [ ] **Context aware**: Make the speaker verifier or ASR aware of conversation context
+- [ ] **Context Awareness**: Make the speaker verifier or ASR aware of conversation context
 
 ## Acknowledgements
 

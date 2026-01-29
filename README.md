@@ -72,8 +72,10 @@ python src/gateway_app.py
 ```
 
 ### Test STT from client
-Open the `examples/client_demo.html` with a web browser then click on `Start Chatting`
-
+Open the `examples/client_demo.html` with a web browser then click on `Start Chatting`. Or simulate how the STT handle the call with 
+```bash
+python examples/simulate_call.py examples/test.wav
+```
 ## Docker Deployment
 
 ### 1. Setup Environment

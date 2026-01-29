@@ -1,0 +1,10 @@
+Iso-Vox
+Copyright 2026 Jobix-Ai
+
+This project utilizes the following third-party software:
+
+* NVIDIA TitaNet & Parakeet Models: Licensed under CC-BY-4.0 by NVIDIA Corporation.
+* Smart Turn: Licensed under BSD-2-Clause by Pipecat AI.
+* Moonshine ASR (English): Licensed under MIT by Useful Sensors Inc.
+* MPSENet: Licensed under MIT by JacobLinCool.
+* GTCRN: Licensed under MIT by Xiaobin-Rong.

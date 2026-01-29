@@ -4,6 +4,9 @@ A real-time speech-to-text system with speaker verification, smart turn detectio
 
 For an overview of the system architecture, see [architecture.md](architecture.md).
 
+Demo with background noise and background voice
+<video src="examples/demo.mp4" controls width="1000"></video>
+
 ## Prerequisites
 
 - Python 3.11+

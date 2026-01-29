@@ -159,7 +159,8 @@ This STT system uses the following projects:
 
 - [NVIDIA TitaNet](https://huggingface.co/nvidia/speakerverification_en_titanet_large) - Speaker verification
 - [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) - ASR model
-- [Smart Turn](https://github.com/pipecat-ai/smart-turn) - Turn detection
+- [Silero-VAD](https://github.com/snakers4/silero-vad) - VAD
+- [Smart Turn](https://github.com/pipecat-ai/smart-turn) - End of turn detection
 - [Moonshine](https://github.com/moonshine-ai/moonshine) - Lightweight ASR
 - [MPSENet](https://github.com/JacobLinCool/MPSENet) - Speech enhancement
 - [GTCRN](https://github.com/Xiaobin-Rong/gtcrn) - Noise reduction

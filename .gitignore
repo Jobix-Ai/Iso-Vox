@@ -1,0 +1,24 @@
+
+# environments
+.env
+venv/
+.venv/
+
+# python
+__pycache__/
+*.pyc
+
+# logs
+logs/
+*.log
+
+# builds
+build/
+dist/
+*.egg-info/
+
+# models
+weights/
+*.pt
+*.onnx
+*.safetensors
